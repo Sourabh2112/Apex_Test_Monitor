@@ -1,0 +1,113 @@
+<template>
+    <lightning-card title="Apex Test Coverage Monitor" icon-name="custom:custom63">
+        <div class="slds-p-around_medium monitor">
+            <div class="toolbar">
+                <lightning-button
+                    label="Add Row"
+                    icon-name="utility:add"
+                    onclick={handleAddRow}>
+                </lightning-button>
+                <lightning-button
+                    label="Run Tests"
+                    variant="brand"
+                    icon-name="utility:play"
+                    onclick={handleRunTests}
+                    disabled={isRunDisabled}>
+                </lightning-button>
+            </div>
+
+            <div class="pasteBox">
+                <lightning-textarea
+                    label="Paste class pairs"
+                    value={bulkText}
+                    placeholder="One pair per line, for example: MyClass, MyClassTest"
+                    onchange={handleBulkTextChange}>
+                </lightning-textarea>
+                <lightning-button
+                    label="Apply Paste"
+                    icon-name="utility:paste"
+                    onclick={handleApplyBulkText}
+                    disabled={isBusy}>
+                </lightning-button>
+            </div>
+
+            <div class="inputTable" role="table" aria-label="Apex class and test class input rows">
+                <div class="inputHeader" role="row">
+                    <div role="columnheader">Apex Class Name</div>
+                    <div role="columnheader">Test Class Name</div>
+                    <div role="columnheader">Actions</div>
+                </div>
+                <template for:each={rows} for:item="row">
+                    <div class="inputRow" role="row" key={row.key}>
+                        <lightning-input
+                            variant="label-hidden"
+                            label="Apex Class Name"
+                            data-key={row.key}
+                            data-field="apexClassName"
+                            value={row.apexClassName}
+                            onchange={handleRowChange}
+                            disabled={isBusy}>
+                        </lightning-input>
+                        <lightning-input
+                            variant="label-hidden"
+                            label="Test Class Name"
+                            data-key={row.key}
+                            data-field="testClassName"
+                            value={row.testClassName}
+                            onchange={handleRowChange}
+                            disabled={isBusy}>
+                        </lightning-input>
+                        <lightning-button-icon
+                            icon-name="utility:delete"
+                            alternative-text="Remove row"
+                            title="Remove row"
+                            data-key={row.key}
+                            onclick={handleRemoveRow}
+                            disabled={isRemoveDisabled}>
+                        </lightning-button-icon>
+                    </div>
+                </template>
+            </div>
+
+            <template if:true={errorMessage}>
+                <div class="slds-notify slds-notify_alert slds-alert_error slds-m-top_medium" role="alert">
+                    <span>{errorMessage}</span>
+                </div>
+            </template>
+
+            <template if:true={status}>
+                <section class="statusPanel slds-m-top_medium" aria-live="polite">
+                    <div>
+                        <span class="label">Request</span>
+                        <span>{status.status}</span>
+                    </div>
+                    <div>
+                        <span class="label">Queueable</span>
+                        <span>{status.orchestrationStatus}</span>
+                    </div>
+                    <div>
+                        <span class="label">Test Run</span>
+                        <span>{status.testRunStatus}</span>
+                    </div>
+                    <div>
+                        <span class="label">Progress</span>
+                        <span>{progressLabel}</span>
+                    </div>
+                </section>
+                <template if:true={status.message}>
+                    <p class="slds-text-body_small slds-m-top_x-small">{status.message}</p>
+                </template>
+            </template>
+
+            <template if:true={hasResults}>
+                <lightning-datatable
+                    class="slds-m-top_medium"
+                    key-field="rowKey"
+                    data={resultRows}
+                    columns={columns}
+                    hide-checkbox-column>
+                </lightning-datatable>
+            </template>
+        </div>
+    </lightning-card>
+</template>
