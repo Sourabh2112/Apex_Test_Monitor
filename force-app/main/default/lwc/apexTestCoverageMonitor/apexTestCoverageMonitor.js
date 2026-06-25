@@ -47,10 +47,13 @@ export default class ApexTestCoverageMonitor extends LightningElement {
         return this.resultRows.length > 0;
     }
 
+     // NEW
+    get isDownloadDisabled() {
+        return this.isBusy || !this.hasResults;
+    }
+
     get progressLabel() {
-        if (!this.status) {
-            return '';
-        }
+        if (!this.status) return '';
         const processed = this.status.jobItemsProcessed ?? 0;
         const total = this.status.totalJobItems ?? 0;
         return total ? `${processed} / ${total}` : 'Pending';
@@ -98,7 +101,7 @@ export default class ApexTestCoverageMonitor extends LightningElement {
             .filter((row) => row.apexClassName || row.testClassName);
 
         if (!parsedRows.length) {
-            this.showToast('No rows found', 'Paste one Apex class and test class pair per line.', 'warning');
+            this.showToast('No rows found', 'Paste valid class pairs.', 'warning');
             return;
         }
         this.rows = parsedRows;
@@ -143,18 +146,19 @@ export default class ApexTestCoverageMonitor extends LightningElement {
     }
 
     async refreshStatus() {
-        if (!this.requestId) {
-            return;
-        }
+        if (!this.requestId) return;
+
         try {
             const response = await getStatus({ requestId: this.requestId });
             this.status = response;
+
             this.resultRows = (response.rows ?? []).map((row, index) => ({
                 rowKey: `${row.apexClassName}-${row.testClassName}-${index}`,
                 ...row
             }));
 
             const finalStatus = response.testRunStatus || response.status;
+
             if (TERMINAL_STATUSES.has(finalStatus)) {
                 this.stopPolling();
                 this.isBusy = false;
@@ -166,9 +170,97 @@ export default class ApexTestCoverageMonitor extends LightningElement {
         }
     }
 
+     // NEW FUNCTION
+    handleDownloadCSV() {
+        try {
+            console.log('Download started ✅');
+
+            if (!this.resultRows || this.resultRows.length === 0) {
+                this.showToast('No Data', 'Nothing to download.', 'warning');
+                return;
+            }
+
+            const headers = [
+                'Apex Class',
+                'Test Class',
+                'API Version',
+                'Coverage %',
+                'Lines Covered',
+                'Lines Uncovered',
+                'Chars Before',
+                'Chars After',
+                'Savings',
+                'Status',
+                'Message'
+            ];
+
+            let csvContent = '';
+
+            // ✅ Add headers
+            csvContent += headers.join(',') + '\n';
+
+            // ✅ Add rows
+            this.resultRows.forEach(row => {
+                const values = [
+                    row.apexClassName || '',
+                    row.testClassName || '',
+                    row.apiVersion || '',
+                    row.codeCoveragePercent || '',
+                    row.linesCovered || '',
+                    row.linesUncovered || '',
+                    row.charactersBeforeIndentation || '',
+                    row.charactersAfterIndentation || '',
+                    row.potentialSavings || '',
+                    row.status || '',
+                    row.message || ''
+                ];
+
+                const escaped = values.map(v => {
+                    const val = String(v).replace(/"/g, '""');
+                    return `"${val}"`;
+                });
+
+                csvContent += escaped.join(',') + '\n';
+            });
+
+            console.log('CSV built ✅');
+
+            // CRITICAL FIX: Use data URI instead of Blob
+            const encodedUri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvContent);
+
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `Apex_Test_Coverage_${Date.now()}.csv`);
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            console.log('Download triggered ✅');
+
+        } catch (error) {
+            console.error('Download failed ❌', error);
+            this.showToast('Error', 'Download failed. Check console.', 'error');
+        }
+    }
+
+    // NEW HELPER
+    downloadFile(csvContent) {
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Apex_Test_Coverage_${Date.now()}.csv`;
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
     handleError(error) {
         this.errorMessage = error?.body?.message || error?.message || 'Unexpected error.';
-        this.showToast('Unable to monitor tests', this.errorMessage, 'error');
+        this.showToast('Error', this.errorMessage, 'error');
     }
 
     showToast(title, message, variant) {

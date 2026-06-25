@@ -220,27 +220,65 @@ public with sharing class ApexTestCoverageMonitorController {
             return 0;
         }
 
-        List<String> lines = body.replace('\r\n', '\n').replace('\r', '\n').split('\n');
+        List<String> rawLines = body
+            .replace('\r\n', '\n')
+            .replace('\r', '\n')
+            .split('\n');
+
+        List<String> cleanedLines = new List<String>();
+
+        // ✅ Step 1: Normalize blank lines (Prettier behavior)
+        Boolean previousWasBlank = false;
+
+        for (String line : rawLines) {
+            String trimmed = line == null ? '' : line.trim();
+
+            if (trimmed == '') {
+                if (!previousWasBlank) {
+                    cleanedLines.add(''); // keep single blank line
+                    previousWasBlank = true;
+                }
+            } else {
+                cleanedLines.add(trimmed);
+                previousWasBlank = false;
+            }
+        }
+
         Integer indent = 0;
         Integer charCount = 0;
-        Boolean hasWrittenLine = false;
-        for (String rawLine : lines) {
-            String trimmed = rawLine == null ? '' : rawLine.trim();
-            if (trimmed == '') {
+
+        // ✅ Step 2: Apply indentation + count
+        for (Integer i = 0; i < cleanedLines.size(); i++) {
+            String line = cleanedLines[i];
+
+            if (line == '') {
+                // ✅ one newline only
+                charCount += 1;
                 continue;
             }
-            if (trimmed.startsWith('}')) {
+
+            // adjust indent before line
+            if (line.startsWith('}')) {
                 indent = Math.max(0, indent - 1);
             }
-            charCount += indent + trimmed.length();
-            if (hasWrittenLine) {
+
+            // ✅ indentation as tabs (1 tab = 1 char)
+            charCount += indent;
+
+            // ✅ actual content
+            charCount += line.length();
+
+            // ✅ newline
+            if (i < cleanedLines.size() - 1) {
                 charCount += 1;
             }
-            hasWrittenLine = true;
-            if (trimmed.endsWith('{')) {
+
+            // adjust indent after
+            if (line.endsWith('{')) {
                 indent++;
             }
         }
+
         return charCount;
     }
 

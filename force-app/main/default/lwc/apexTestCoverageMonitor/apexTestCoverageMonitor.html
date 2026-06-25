@@ -100,6 +100,15 @@
             </template>
 
             <template if:true={hasResults}>
+
+                <lightning-button
+                    label="Download Excel"
+                    icon-name="utility:download"
+                    onclick={handleDownloadCSV}
+                    disabled={isDownloadDisabled}
+                    class="slds-m-top_small">
+                </lightning-button>
+
                 <lightning-datatable
                     class="slds-m-top_medium"
                     key-field="rowKey"
